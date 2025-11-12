@@ -1,0 +1,89 @@
+---
+title: "BE 2 - Régression Logistique"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 6)
+library(car)
+```
+
+## Question 1
+```{r}
+Tuyns <- read.table("Tuyns.txt", header = TRUE)
+Tuyns$TAB <- factor(Tuyns$TAB)
+Tuyns$ALC <- factor(Tuyns$ALC)
+summary(Tuyns)
+plot(Tuyns)
+```
+
+```{r}
+reglTuyns <- glm(cancer ~ 1, family = binomial(link = "logit"), data = Tuyns)
+summary(reglTuyns)
+```
+
+En régression logistique, p0 correspond à la probabilité de l'évènement Cancer = 1.
+Ainsi, alpha correspond à l'estimation de l'intercept moyen.
+
+Si alpha est positif, la probabilité p0 est supérieure à 0,5, c'est-à-dire qu'il est plus probable qu'il y ait un cancer.
+Au contraire, si alpha est négatif, la probabilité est inférieure à 0,5.
+
+donc ici alpha = -0,45 signifie que la probabilité d'avoir un cancer est plus faible que 0,5.
+La p-valeur associée à alpha est 5.06e-07 (très inférieure à 0.05).
+Cela signifie que la probabilité de base de survenue du cancer est significativement différente de 50%.
+
+## Question 2 :
+
+On considère le modèle de régression logistique suivant :
+$$
+\log\left(\frac{p}{1-p}\right) = \alpha + \beta_1 \text{TAB}_1 + \beta_2 \text{TAB}_2 + \beta_3 \text{TAB}_3
+$$
+```{r}
+model_tab <- glm(cancer ~ TAB, data = Tuyns, family = binomial)
+
+anova(model_tab, test = "Chisq")
+Anova(model_tab, test.statistic = "LR", type = "III")
+summary(model_tab)
+```
+L'intercept dans ce cas correspond au cas où TAB = 0.
+
+Le Tabagisme est une variable influente, car sa p-value << 0,05.
+
+Le résultat du summary nous indique que tous les niveaux d'exposition du tabagisme n'ont pas la même influence. Cependant ils ont tous une influence significative car leur p-value << 0,05.
+
+## Question 3 :
+
+On considère le modèle de régression logistique suivant :
+$$
+\log\left(\frac{p}{1-p}\right) = \alpha + \beta_1 \text{ALC}_1 + \beta_2 \text{ALC}_2 + \beta_3 \text{ALC}_3
+$$
+```{r}
+model_alc <- glm(cancer ~ ALC, data = Tuyns, family = binomial)
+
+anova(model_alc, test = "Chisq")
+Anova(model_alc, test.statistic = "LR", type = "III")
+summary(model_alc)
+
+anova(model_alc, model_tab)
+AIC(model_alc, model_tab)
+```
+L'intercept dans ce cas correspond au cas où ALC = 0.
+
+L'e Tabagisme'Alcoolisme est une variable influente, car sa p-value << 0,05.
+
+Le résultat du summary nous indique que tous les niveaux d'exposition d'u tabagisme d'alcoolisme n'ont pas la même influence. Cependant ils ont tous une influence significative car leur p-value << 0,05.
+
+Les deux modèles ont des AIC très proches il est difficile de retenir une variable parmi les 2
+
+## Question 4 : 
+
+
+```{r}
+# 1) Modèle complet avec interaction
+model_interaction <- glm(cancer ~ TAB * ALC, data = Tuyns, family = binomial)
+summary(model_interaction)
+```
+On remarque ici que les 2 seuls variables influentes sont l'intercept et TAB3.
+

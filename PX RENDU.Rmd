@@ -1,0 +1,121 @@
+---
+title: "BE 2 - Plan d'Expérience"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 6)
+library(car)
+```
+
+## Exercice 1
+### Question 1
+
+```{r}
+silicium <- read.table("silicium.txt", header = TRUE)
+
+head(silicium)
+summary(silicium)
+pairs(silicium)
+```
+
+```{r}
+X <- as.matrix(silicium[,-7])
+siliciumtransposee <- t(X) %*% X
+siliciumtransposee
+```
+
+
+
+On remarque ici que tX.X = 64.In. 
+Donc la matrice X est orthogonale.
+On dispose de 6 variables explicatives, et on peut voir que 64 expériences ont été réalisées.
+On pourrait donc penser à un Plan factoriel complet 2^p avec p = 6.
+
+Mais il est dit dans l'énoncé que chaque expérience est répliquée quatre fois, on a donc 64/4=16 expériences soit 2^4. 
+Le plan est donc un Plan Factoriel fractionnaire de type 2^(6-2).
+
+```{r}
+X2 <- as.matrix(silicium[1:16,-7])
+X2[,1] * X2[,2] * X2[,3] == X2[,5]
+X2[,1] * X2[,3] * X2[,4] == X2[,6]
+```
+
+On retrouve bien A.B.C = E et A.C.D = F.
+
+Les effets principaux peuvent être estimés sans confusions, en revanche les effets secondaires ne peuvent pas être estimés sans confusions. Le plan est donc de résolution IV. 
+
+### Question 2
+```{r}
+siliciumLm <- lm(Camber ~ Ltemp + Ltime + Lpress + Ctemp + Ctime + Catmos, data = silicium)
+
+summary(siliciumLm)
+```
+La p-value du modèle est 3.566e-13 << 0,05, ce qui signifie que ce modèle est significatif.
+On remarque aussi que les Variables Ltime et Ctemp ont des p-values > 0,05. On peut donc envisager de les retirer dans notre modèle.
+
+### Question 3
+On sait que l'erreur standard peut s'écrire :
+
+$$
+\text{StdError}_i = \sqrt{\sigma^2 \left[ (X^T X)^{-1} \right]_{ii}}
+$$
+avec \(\sigma =\) Residual Standard Error.  
+On a montré précédemment que \(X^T X = 64 \cdot I\).  
+
+En remplaçant \(\sigma = 38.34\) :
+
+$$
+\text{StdError}_i = \frac{38.34}{\sqrt{64}} = 4.793
+$$
+
+Et ce résultat est valable pour toutes les variables.
+
+
+### Question 4
+
+On peut supprimer les deux variables Ltime et Ctemp d’un coup, il n’est pas nécessaire de faire un algorithme backward  car tX.X est diagonale, il n’y a pas de corrélation.
+
+```{r}
+siliciumLm_reduit <- lm(Camber ~ Ltemp + Lpress + Ctime + Catmos, data = silicium)
+
+summary(siliciumLm_reduit)
+```
+
+Les coefficients sont identiques aux coefficients du modèle précédent. Cela est une nouvelle fois cohérent avec le fait qu'il n'y a pas de corrélation entre les différents paramètres.
+
+### Question 5
+
+Les conditions expérimentales qui permettent de minimiser la courbure Camber sont celles où l'on prend la valeur minimale (-1) pour les coefficients positifs et la valeur maximale (+1) pour les coefficients négatifs. Les coefficients étant ceux que l'on peut lire dans la colonne Estimate du Summary.
+
+On peut donc trouver un intervalle de confiance de la manière suivante : 
+
+```{r}
+frame <- data.frame(Ltemp = -1, Lpress = -1, Ctime = 1, Catmos = 1)
+predict(siliciumLm_reduit, frame, interval = "confidence", level = 0.95)
+```
+
+Un intervalle de confiance pour la courbure moyenne en ce point de fonctionnement optimal est donc [-17.9689 , 25.12515]. Or la courbure ne peut pas être négative, donc on prend la valeur absolue de cet intervalle : [0 , 25.12515]
+
+La température de laminage varie entre 55 et 75 °C correspondant dans à une variation entre -1 et 1 dans le modèle.
+Le coefficient de cette variable est 19,453. Donc une augmentation de 5°C de la température de Laminage entraine une variation de la courbre de 2 * 19,453 / 4 = 9,7265.
+
+
+### Question 6
+```{r}
+par(mfrow = c(2,2))
+plot(siliciumLm_reduit)
+```
+
+
+Sur le graphe Residuals vs Fitted, on observe que les résidus sont centrés sur 0, leur esperance semble bien nulle. En revanche, on observe une légère tendance en forme de U dans la répartition des résidus. Ils ne semblent donc pas réellement uniforméments répartis autour de 0.
+
+Sur le Graphe Q-Q residuals, on remarque que les points suivent dans l'ensemble relativement bien la diagonale et sont alignés, à l'exception des extrémités.
+
+Le modèle semble donc acceptable vis-à-vis de ses hypothèses.
+
+
+
+

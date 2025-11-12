@@ -1,0 +1,140 @@
+---
+title: "BE 2 - Régression Logistique - Exercice"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Exercice 2
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 6)
+library(car)
+```
+
+## Question 1
+```{r}
+Neuralgia <- read.table("neuralgia.txt", header = TRUE)
+summary(Neuralgia)
+plot(Neuralgia)
+```
+On dispose de 4 variables explicatives : Age et Duration sont des variables quantitatives, tandis que Sexe et Treatment sont des variables qualitatives. On veut expliquer la variable Pain qui vaut 0 ou 1. 
+
+## Question 2 :
+```{r}
+set.seed(123) # pour reproductibilité
+u <- sample(1:60, 48)
+NeuralgiaApp <- Neuralgia[u, ]
+NeuralgiaTest <- Neuralgia[-u, ]
+```
+
+## Question 3 :
+```{r}
+reglNeuralgia <- glm(Pain ~ ., family = binomial(link = "logit"), data = NeuralgiaApp)
+summary(reglNeuralgia)
+```
+La régression logistique modélise la probabilité que Pain = 1 (présence de douleur) en fonction des variables explicatives.
+Le modèle Logit associé est :
+
+$$
+\log\left(\frac{P(\text{Pain} = 1)}{1 - P(\text{Pain} = 1)}\right) = \beta_0 + \beta_1 \text{Treatment} + \beta_2 \text{Sex} + \beta_3 \text{Age} + \beta_4 \text{Duration}
+$$
+## Question 4 : 
+
+
+```{r}
+
+Anova(reglNeuralgia, type = "III", test.statistic = "LR")
+Anova(reglNeuralgia, type = "III", test.statistic = "Wald")
+anova(reglNeuralgia, test = "Chisq")
+```
+# Question 5
+
+Principe du forward AIC : On commence avec le modèle le plus simple (constant), et on ajoute une à une les variables qui minimisent le critère d'AIC. Lorsque l'ajout d'une variable réduit le critère d'AIC, on arrête le programme.
+
+```{r}
+constant <- glm(Pain ~ 1, family = binomial, data = NeuralgiaApp)
+forward <- step(constant, scope = list(lower = constant, upper = Pain ~ Treatment + Sex + Age + Duration), direction = "forward")
+
+# Vérification de l'ANOVA du modèle sélectionné
+
+forward$anova
+Anova(forward, test.statistic = "LR", type = 'III')
+```
+
+## Question 6
+
+```{r}
+# Modèle avec Duration supprimé
+
+reglNeuragliaTest <- glm(Pain ~ . - Duration, family = binomial(link = "logit"), data = NeuralgiaApp)
+prediction <- predict(reglNeuragliaTest, newdata = NeuralgiaTest, type = 'response')
+
+# Matrice de confusion
+
+table(prediction > 0.5, NeuralgiaTest$Pain)
+
+# Modèle avec Duration et Sex supprimés
+
+reglNeuragliaTestBis <- glm(Pain ~ . - Duration - Sex, family = binomial(link = "logit"), data = NeuralgiaApp)
+predictionBis <- predict(reglNeuragliaTestBis, newdata = NeuralgiaTest, type = 'response')
+
+table(predictionBis > 0.5, NeuralgiaTest$Pain)
+```
+## Question 7
+
+```{r}
+set.seed(123)
+n_sim <- 50
+erreurs_totales <- 0
+
+for (i in 1:n_sim) {
+u2 <- sample(1:60, 48)
+NeuralgiaApp2 <- Neuralgia[u2, ]
+NeuralgiaTest2 <- Neuralgia[-u2, ]
+
+reglNeuragliaTest2 <- glm(Pain ~ . - Duration, family = binomial(link = "logit"), data = NeuralgiaApp2)
+prediction2 <- predict(reglNeuragliaTest2, newdata = NeuralgiaTest2, type = 'response')
+
+confusion <- table(prediction2 > 0.5, NeuralgiaTest2$Pain)
+
+erreurs_totales <- erreurs_totales + confusion[2,1] + confusion[1,2]
+}
+
+# Moyenne des erreurs
+
+moyenne_erreurs <- erreurs_totales / n_sim
+moyenne_erreurs
+```
+```{r}
+set.seed(123)
+proportions <- c(0.1, 0.2, 0.3, 0.4)  # Proportions pour l'ensemble de test
+results_prop <- data.frame(proportion = numeric(), accuracy = numeric())
+n = 60
+for (prop in proportions) {
+  test_size <- round(prop * n)
+  train_indices <- sample(1:n, n - test_size)
+  train <- NeuralgiaApp[train_indices, ]
+  test <- NeuralgiaApp[-train_indices, ]
+
+  # Entraînement du modèle
+  model <- glm(Pain ~ Treatment + Age, data = train, family = binomial)
+
+  # Prédictions et calcul de l'accuracy
+  predictions <- predict(model, newdata = test, type = "response")
+  predicted_class <- ifelse(predictions > 0.5, 1, 0)
+  accuracy <- mean(predicted_class == test$Pain)
+
+  # Stockage des résultats
+  results_prop <- rbind(results_prop, data.frame(proportion = prop, accuracy = accuracy))
+}
+
+# Affichage des résultats
+print(results_prop)
+plot(results_prop$proportion, results_prop$accuracy, type = "b",
+     xlab = "Proportion de test", ylab = "Accuracy",
+     main = "Sensibilité à la proportion apprentissage/test")
+
+```
+
+
+
+
